@@ -58,13 +58,36 @@ function App() {
   url.protocol = url.protocol.replace("http", "ws");
   const [cpus, setCpus] = useState();
   useEffect(() => {
-    let ws = new WebSocket(url.href);
-    ws.onmessage = (ev) => {
-      let cpusUpdate = JSON.parse(ev.data);
-      setCpus(cpusUpdate);
+    let ws;
+    const reconnectInterval = 1000; // 1 seconds
+    
+    var connect = function() {
+      try {
+        ws = new WebSocket(url.href);
+        ws.onclose = function() {
+          // console.log('socket close');
+          setCpus(null);
+          setTimeout(connect, reconnectInterval); // Reconnect after a delay
+        };
+        ws.onmessage = (ev) => {
+          let cpusUpdate = JSON.parse(ev.data);
+          setCpus(cpusUpdate);
+        };
+        ws.onopen = () => {
+          // console.log("WebSocket connection established");
+        };
+      } catch (error) {
+        console.error("WebSocket connection error:", error);
+        // setTimeout(connect, reconnectInterval); // Reconnect after a delay
+      }
     };
+
+    connect();
+
     return () => {
-      ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, []);
 
